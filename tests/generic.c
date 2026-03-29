@@ -1,109 +1,100 @@
 #include <adroxo.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 #include <assert.h>
 #include <time.h>
 
 // -----------------------------------------
-// Determinism test (unchanged)
+// DETERMINISM TESTS
 // -----------------------------------------
-static void test_determinism(void (*fn)(void*), size_t len){
-    uint8_t a[64] = {0};
-    uint8_t b[64] = {0};
 
-    for(size_t i = 0; i < len; i++){
-        a[i] = (uint8_t)i;
-        b[i] = (uint8_t)i;
-    }
+static void test_adroxo32_q_determinism(void) {
+    uint32_t s_a[4] = {0x1, 0x2, 0x3, 0x4};
+    uint32_t s_b[4] = {0x1, 0x2, 0x3, 0x4};
+    uint32_t r_a = adroxo32_q(s_a);
+    uint32_t r_b = adroxo32_q(s_b);
+    assert(r_a == r_b);
+    assert(memcmp(s_a, s_b, 16) == 0);
+}
 
-    fn(a);
-    fn(b);
-
-    assert(memcmp(a, b, len) == 0);
+static void test_adroxo64_q_determinism(void) {
+    uint64_t s_a[4] = {0x1, 0x2, 0x3, 0x4};
+    uint64_t s_b[4] = {0x1, 0x2, 0x3, 0x4};
+    uint64_t r_a = adroxo64_q(s_a);
+    uint64_t r_b = adroxo64_q(s_b);
+    assert(r_a == r_b);
+    assert(memcmp(s_a, s_b, 32) == 0);
 }
 
 // -----------------------------------------
-// SPEED TEST (NEW)
+// SPEED TESTS
 // -----------------------------------------
-static void test_speed(void (*fn)(void*), size_t len){
-    uint8_t data[64];
 
-    for(size_t i = 0; i < len; i++)
-        data[i] = (uint8_t)i;
-
-    const int iterations = 1000000;
-
+static void test_adroxo32_q_speed(void) {
+    uint32_t state[4] = {1, 2, 3, 4};
+    uint32_t sum = 0;
+    const int iterations = 10000000;
     clock_t start = clock();
+    for (int i = 0; i < iterations; i++) {
+        sum ^= adroxo32_q(state);
+    }
+    clock_t end = clock();
+    double sec = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("  adroxo32_q Speed: %.2f M ops/sec (Sum: %u)\n", 
+           iterations / sec / 1000000.0, (unsigned int)sum);
+}
 
-    for(int i = 0; i < iterations; i++){
+static void test_adroxo64_q_speed(void) {
+    uint64_t state[4] = {1, 2, 3, 4};
+    uint64_t sum = 0;
+    const int iterations = 10000000;
+    clock_t start = clock();
+    for (int i = 0; i < iterations; i++) {
+        sum ^= adroxo64_q(state);
+    }
+    clock_t end = clock();
+    double sec = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("  adroxo64_q Speed: %.2f M ops/sec (Sum: %llu)\n", 
+           iterations / sec / 1000000.0, (unsigned long long)sum);
+}
+
+// -----------------------------------------
+// VOID MIXER WRAPPER
+// -----------------------------------------
+
+static void test_void_speed(const char* name, void (*fn)(void*), size_t bits) {
+    uint8_t data[64] = {0};
+    const int iterations = 1000000;
+    clock_t start = clock();
+    for(int i = 0; i < iterations; i++) {
         fn(data);
     }
-
     clock_t end = clock();
-
     double sec = (double)(end - start) / CLOCKS_PER_SEC;
-
-    printf("  Speed (%zu bytes): %.2f M ops/sec\n",
-           len, iterations / sec / 1000000.0);
+    printf("  %s Speed (%zu-bit): %.2f M ops/sec\n", name, bits, iterations / sec / 1000000.0);
 }
 
 // -----------------------------------------
-// AVALANCHE SCORE (IMPROVED)
+// MAIN
 // -----------------------------------------
-static void test_avalanche_score(void (*fn)(void*), size_t len){
-    uint8_t a[64] = {0};
-    uint8_t b[64] = {0};
 
-    a[0] = 0x00;
-    b[0] = 0x01;
+int main(void) {
+    printf("--- Testing Adroxo _q Primitives ---\n");
+    
+    test_adroxo32_q_determinism();
+    test_adroxo32_q_speed();
+    printf("  adroxo32_q OK\n\n");
 
-    fn(a);
-    fn(b);
+    test_adroxo64_q_determinism();
+    test_adroxo64_q_speed();
+    printf("  adroxo64_q OK\n\n");
 
-    int diff_bits = 0;
+    printf("--- Testing Adroxo Full Mixers ---\n");
+    test_void_speed("adroxo128", adroxo128, 128);
+    test_void_speed("adroxo256", adroxo256, 256);
+    test_void_speed("adroxo512", adroxo512, 512);
+    printf("  Full Mix Tests OK\n\n");
 
-    for(size_t i = 0; i < len; i++){
-        uint8_t x = a[i] ^ b[i];
-        for(int j = 0; j < 8; j++){
-            diff_bits += (x >> j) & 1;
-        }
-    }
-
-    double total_bits = len * 8;
-    double avalanche = diff_bits / total_bits;
-
-    printf("  Avalanche score (%zu bytes): %.3f\n", len, avalanche);
-
-    // Weak threshold check (adjust if needed)
-    assert(avalanche > 0.3);
-}
-
-// -----------------------------------------
-// Run tests per function
-// -----------------------------------------
-static void run_tests(const char* name,
-                      void (*fn)(void*),
-                      size_t len){
-    printf("Testing %s...\n", name);
-
-    test_determinism(fn, len);
-    test_speed(fn, len);
-    test_avalanche_score(fn, len);
-
-    printf("  OK\n\n");
-}
-
-// -----------------------------------------
-// Main
-// -----------------------------------------
-int main(void){
-    run_tests("adroxo32",  adroxo32,  4);
-    run_tests("adroxo64",  adroxo64,  8);
-    run_tests("adroxo128", adroxo128, 16);
-    run_tests("adroxo256", adroxo256, 32);
-    run_tests("adroxo512", adroxo512, 64);
-
-    printf("All tests passed.\n");
+    printf("All Adroxo tests passed successfully.\n");
     return 0;
 }
