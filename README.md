@@ -10,7 +10,7 @@ By utilizing a **3-operation/2-word (3p2w)** mixing logic, Adroxo achieves extre
 * **Zero-Dependency:** Standard C99/C23 compatible.
 * **Branchless & Inline-Ready:** Optimized for modern CPUs with zero jumps in the hot path.
 * **Zero Allocations:** Operates entirely in-place on user-provided buffers.
-* **Quick Variants (`_q`):** Specialized 1-round functions that return high-entropy integers in ~15 instructions.
+* **Quick Variants (`_q`):** Specialized function that return high-entropy integers in few instructions.
 
 ---
 

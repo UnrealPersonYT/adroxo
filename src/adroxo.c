@@ -32,8 +32,10 @@ void adroxo256(void* __restrict state){
     adroxo256_r(state, ADROXO_GENERIC_ROUNDS);
 }
 uint64_t adroxo64_q(void* __restrict state){
-    adroxo256_r(state, 1);
-    return rol64(((uint64_t*)state)[0], 13) ^ ((uint64_t*)state)[1];
+    ((uint64_t*)state)[0] = rol64(((uint64_t*)state)[0] + ((uint64_t*)state)[3], 29);
+    for(size_t i = 1; i < 4; ++i)
+        ((uint64_t*)state)[i] ^= ((uint64_t*)state)[(i + 3) % 4];
+    return rol64(((uint64_t*)state)[0], 16) ^ ((uint64_t*)state)[1];
 }
 
 // 32-bit words
@@ -54,6 +56,8 @@ void adroxo128(void* __restrict state){
     adroxo128_r(state, ADROXO_GENERIC_ROUNDS);
 }
 uint32_t adroxo32_q(void* __restrict state){
-    adroxo128_r(state, 1);
-    return rol32(((uint32_t*)state)[0], 13) ^ ((uint32_t*)state)[1];
+    ((uint32_t*)state)[0] = rol64(((uint32_t*)state)[0] + ((uint32_t*)state)[3], 29);
+    for(size_t i = 1; i < 4; ++i)
+        ((uint32_t*)state)[i] ^= ((uint32_t*)state)[(i + 3) % 4];
+    return rol64(((uint32_t*)state)[0], 16) ^ ((uint32_t*)state)[1];
 }

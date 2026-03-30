@@ -3,11 +3,11 @@
 #include <stdio.h>
 
 int main(void){
-    uint32_t buffer[4] = {1,2,3,4};
+    uint64_t buffer[4] = {1,2,3,4};
     FILE* _stdout = stdout;
     setvbuf(_stdout, NULL, _IONBF, 0);
     while(1){
-        uint32_t v = adroxo32_q(buffer);
+        uint64_t v = adroxo64_q(buffer);
         fwrite(&v, sizeof(v), 1, _stdout);
     }
     return 0;
